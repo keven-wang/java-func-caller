@@ -60,7 +60,7 @@ import java.util.Map;
 public class FooFunc {
   public static void main(String... args){}
   
-  public static Map<String, String> run(List<String> args){
+  public static Map<String, Object> run(List<String> args){
     Map<String, String> result = new HashMap<String, String>();
     
     if(args.size() > 0){
