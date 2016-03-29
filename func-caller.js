@@ -3,6 +3,7 @@
 var CALLER_JAR_PATH = __dirname + '/jar/FuncCaller.jar';
 var DATA_PRE = 'for js:', PRE_LEN = DATA_PRE.length;
 var spawn = require('child_process').spawn;
+var __java_installed__ = null;
 
 function estr(s){
     return s.replace(/[\u0100-\uffff]/g, function(i){ 
@@ -27,10 +28,29 @@ function hasProps(o, props){
     });
 }
 
-function isJavaInstall(){
-    var exec = require('child_process').execSync;
-    var out  = exec('java -version', {encoding:"utf-8"});
-    return out.search(/java\s+version/i) != -1;  
+function isJavaInstalled(callback){
+    if(__java_installed__ != null){
+        return callback(__java_installed__);    
+    }
+
+    var spawn  = require('child_process').spawn('java', ['-version']);
+    var result = [];
+    
+    spawn.on('error', function(err){ 
+        __java_installed__ = false;
+        callback(false); 
+    })
+    
+    spawn.stderr.on('data', function(ret) {
+        result.push(ret.toString());
+    }); 
+
+    spawn.stderr.on('end', function(ret) {
+        var data = result.join('');
+        var isInstalled = data.search(/java\s+version/i) != -1;
+        __java_installed__ = isInstalled
+        callback(isInstalled);
+    });       
 }
 
 function Caller(extJars){
@@ -50,19 +70,25 @@ Caller.prototype = {
             throw 'the properti "params" must be array!';
         }
 
+        var me = this;
         var taskId  = this.guid++;
         var command = this.getCommand(taskId, conf.func, conf.params);
+        var doTask  = function(){
+            me.taskMap[taskId] = {
+                taskId  : taskId,
+                scope   : conf.scope,
+                error   : conf.error,
+                success : conf.success
+            };
 
-        if(this.caller == null){ this.initCaller(); }
-
-        this.taskMap[taskId] = {
-            taskId  : taskId,
-            scope   : conf.scope,
-            error   : conf.error,
-            success : conf.success
+            me.caller.stdin.write(command);   
         };
 
-        this.caller.stdin.write(command);   
+        if(this.caller == null){ 
+            this.initCaller( doTask ); 
+        }else{
+            doTask();
+        }
     },
 
     getCommand : function(taskId, func, params){
@@ -75,30 +101,33 @@ Caller.prototype = {
         );
     },
 
-    initCaller : function(){
-        if( !isJavaInstall() ){
-            throw ("java-func-caller.js => please install java runtime!");
-        }
+    initCaller : function( callback ){
+        isJavaInstalled(function(isInstalled){
+            if( !isInstalled ){
+                throw ("java-func-caller.js => please install java runtime!");
+            }            
 
-        var params = ['-jar', CALLER_JAR_PATH].concat(this.extendJars);
-        var me = this, caller = spawn('java', params, {encoding:'utf8'});    
-        
-        caller.stdout.on('data', function (data) {  
-            if(data) { 
-                me.onData(data.toString());
-            }
-        });
+            var params = ['-jar', CALLER_JAR_PATH].concat(this.extendJars);
+            var me = this, caller = spawn('java', params, {encoding:'utf8'});    
+            
+            caller.stdout.on('data', function (data) {  
+                if(data) { 
+                    me.onData(data.toString());
+                }
+            });
 
-        caller.stderr.on('data', function(data){
-            if(data){
-                me.onError(data.toString());
-            }
-        });
+            caller.stderr.on('data', function(data){
+                if(data){
+                    me.onError(data.toString());
+                }
+            });
 
-        //caller.stdout.pipe(process.stdout); 
-        //caller.stderr.pipe(process.stdout); 
+            //caller.stdout.pipe(process.stdout); 
+            //caller.stderr.pipe(process.stdout); 
 
-        this.caller = caller;  
+            me.caller = caller;
+            callback();
+        }.bind(this));
     },
 
     onData : function(data){
