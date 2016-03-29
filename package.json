@@ -1,0 +1,18 @@
+{
+  "name": "java-func-caller",
+  "version": "0.0.1",
+  "main": "func-caller.js",
+  "author": {
+    "name": "keven-wang",
+    "email": "wang_jian_bo037@126.com" 
+  },
+  "license": "MIT",
+  "dependencies": {},
+  "keywords": [
+    "node call java",
+    "node call jar",
+    "node java jar"
+  ],
+  
+  "readmeFilename": "README.md"  
+}

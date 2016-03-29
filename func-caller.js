@@ -27,6 +27,12 @@ function hasProps(o, props){
     });
 }
 
+function isJavaInstall(){
+    var exec = require('child_process').execSync;
+    var out  = exec('java -version', {encoding:"utf-8"});
+    return out.search(/java\s+version/i) != -1;  
+}
+
 function Caller(extJars){
     this.guid = 0;
     this.taskMap = {};
@@ -70,6 +76,10 @@ Caller.prototype = {
     },
 
     initCaller : function(){
+        if( !isJavaInstall() ){
+            throw ("java-func-caller.js => please install java runtime!");
+        }
+
         var params = ['-jar', CALLER_JAR_PATH].concat(this.extendJars);
         var me = this, caller = spawn('java', params, {encoding:'utf8'});    
         
