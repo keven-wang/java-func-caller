@@ -18,7 +18,7 @@ must be meet three conditions.
    * **error_msg**, optional, if failed please set it.
    * **exception**, optional, if failed please set it.
 
-if the jar meet the two onditions, the your can call the method
+if the jar meet the top conditions, then your can call the method
 use the following code:
 
 ```js
