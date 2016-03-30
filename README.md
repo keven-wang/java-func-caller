@@ -48,6 +48,9 @@ caller.callFunc({
   * error_msg, optional, come from the **"error_msg"** property of the java function return.
   * exception, optional, the exception object when a exception occured, come from the **exception"** property of the java function return.
 
+## methods the FuncCaller.jar has supported 
+ * SvgToPng, generate a png file by svg code. the first paramater is svg code, and the second is the save path.
+
 ## A Foo main class
 
 ```java

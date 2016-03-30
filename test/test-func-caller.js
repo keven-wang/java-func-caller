@@ -15,9 +15,15 @@ var svgCode  = (''
     + "</svg>"
 );
 
+var extJars = [__dirname + '/../jar/org.myless.func.FooFunc.jar'];
 
-var caller = new FuncCaller([__dirname + '/../jar/org.myless.func.FooFunc.jar']);
+var caller = new FuncCaller({ 
+    max_wait_time: 2,
+    auto_close  : true,
+    extend_jars : extJars 
+});
 
+// call two java function then stop caller.
 caller.callFunc({
     func    : 'org.myless.func.FooFunc',
     params  : [1, 2, 3, 4, 5],
@@ -39,3 +45,17 @@ caller.callFunc({
         console.log('SvgToPng   error   => ' + data.exception);
     }
 });
+
+// test restart caller to handle the task and then close
+setTimeout(function() {
+    caller.callFunc({
+        func    : 'org.myless.func.SvgToPng',
+        params  : [svgCode, savePath],
+        success : function(data){
+            console.log('SvgToPng   success => task id:' + data.task_id + ' value:' + data.value);
+        },
+        error   : function(data){
+            console.log('SvgToPng   error   => ' + data.exception);
+        }
+    });
+}, 5000);
