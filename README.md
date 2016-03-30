@@ -61,7 +61,7 @@ public class FooFunc {
   public static void main(String... args){}
   
   public static Map<String, Object> run(List<String> args){
-    Map<String, String> result = new HashMap<String, String>();
+    Map<String, Object> result = new HashMap<String, Object>();
     
     if(args.size() > 0){
       result.put("status", String.valueOf(0));

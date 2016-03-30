@@ -3,55 +3,7 @@
 var CALLER_JAR_PATH = __dirname + '/jar/FuncCaller.jar';
 var DATA_PRE = 'for js:', PRE_LEN = DATA_PRE.length;
 var spawn = require('child_process').spawn;
-var __java_installed__ = null;
-
-function estr(s){
-    return s.replace(/[\u0100-\uffff]/g, function(i){ 
-        var code = i.charCodeAt(0).toString(16);
-        return '\\u' + '0000'.slice(0, 4 - code.length) + code;
-    });
-}
-
-function unestr(s){
-    return s.replace(/\\u([0-9a-f]{4})/gi, function(m, n){ 
-        return String.fromCharCode(parseInt(n, 16));
-    });    
-}
-
-function hasProps(o, props){
-    props = typeof props == 'string' 
-          ? props.trim().split(/\s+/) 
-          : props;
-
-    return props.every(function(i){ 
-        return o.hasOwnProperty(i.trim()); 
-    });
-}
-
-function isJavaInstalled(callback){
-    if(__java_installed__ != null){
-        return callback(__java_installed__);    
-    }
-
-    var spawn  = require('child_process').spawn('java', ['-version']);
-    var result = [];
-    
-    spawn.on('error', function(err){ 
-        __java_installed__ = false;
-        callback(false); 
-    })
-    
-    spawn.stderr.on('data', function(ret) {
-        result.push(ret.toString());
-    }); 
-
-    spawn.stderr.on('end', function(ret) {
-        var data = result.join('');
-        var isInstalled = data.search(/java\s+version/i) != -1;
-        __java_installed__ = isInstalled
-        callback(isInstalled);
-    });       
-}
+var util  = require('./util');
 
 function Caller(extJars){
     this.guid = 0;
@@ -62,7 +14,7 @@ function Caller(extJars){
 
 Caller.prototype = {
     callFunc : function(conf){
-        if(!conf || !hasProps(conf, 'func params success error')) { 
+        if(!conf || !util.hasProps(conf, 'func params success error')) { 
             throw "callJarFunc => inalid paramaters must has the follow properties: func params success error!";
         }
 
@@ -96,13 +48,13 @@ Caller.prototype = {
             + '{'
             +   '"task_id":'    + taskId    + ','
             +   '"task_name":"' + func + '",'
-            +   '"task_params":'+ estr(JSON.stringify(params))
+            +   '"task_params":'+ util.escape(JSON.stringify(params))
             + '}\n'
         );
     },
 
     initCaller : function( callback ){
-        isJavaInstalled(function(isInstalled){
+        util.isJavaInstalled(function(isInstalled){
             if( !isInstalled ){
                 throw ("java-func-caller.js => please install java runtime!");
             }            
@@ -141,7 +93,7 @@ Caller.prototype = {
 
             try{
                 var start  = posi + PRE_LEN;
-                var data   = JSON.parse(unestr(i.slice(start)));
+                var data   = JSON.parse(util.unescape(i.slice(start)));
                 var taskId = data.task_id;
                 var record = taskMap[taskId];
 
