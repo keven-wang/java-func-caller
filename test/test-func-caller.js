@@ -20,7 +20,19 @@ var extJars = [__dirname + '/../jar/org.myless.func.FooFunc.jar'];
 var caller = new FuncCaller({ 
     max_wait_time: 2,
     auto_close  : true,
-    extend_jars : extJars 
+    extend_jars : extJars
+});
+
+// test call unsuported method.
+caller.callFunc({
+    func    : 'org.myless.func.FooFunc1',
+    params  : [1, 2, 3, 4, 5],
+    success : function(data){
+        console.log('FooFunc    success => task id:' + data.task_id + ' value:' + data.value);
+    },
+    error   : function(data){
+        console.log('FooFunc    error => ' + data.error_msg);
+    }
 });
 
 // call two java function then stop caller.

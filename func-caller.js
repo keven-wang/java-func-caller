@@ -24,6 +24,7 @@ function Caller(conf){
     
     this.autoClose    = conf.auto_close == true;
     this.maxWaitTime  = conf.max_wait_time > 0 ? conf.max_wait_time : MAX_WAIT_TIME;
+    this.showJavaOutput = conf.show_java_output == true;
 }
 
 Caller.prototype = {
@@ -113,6 +114,7 @@ Caller.prototype = {
             });
 
             if(me.autoClose){ me.initChecker(); }
+            if(me.showJavaOutput){ caller.stdout.pipe(process.stdout); }
 
             me.callerIniting = false;
             me.caller = caller;
