@@ -1,6 +1,6 @@
 {
   "name": "java-func-caller",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "main": "func-caller.js",
   "author": {
     "name": "keven-wang",
