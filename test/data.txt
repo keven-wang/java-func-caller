@@ -1,0 +1,288 @@
+Stack Exchange Inbox Reputation and Badges sign up log in tour help  
+
+Search Q&A
+
+Stack Overflow
+Questions
+ 
+Jobs
+ 
+Tags
+ 
+Users
+ 
+Badges
+ 
+Ask Question
+_ Stack Overflow is a community of 4.7 million programmers, just like you, helping each other. 
+
+Join them; it only takes a minute:
+
+Sign up
+Join the Stack Overflow community to:
+Ask programming questions Answer and help your peers Get recognized for your expertise
+Parse output of spawned node.js child process line by line
+
+up vote
+12
+down vote
+favorite
+14
+I have a PhantomJS/CasperJS script which I'm running from within a node.js script using process.spawn(). Since CasperJS doesn't support require()ing modules, I'm trying to print commands from CasperJS to stdout and then read them in from my node.js script using spawn.stdout.on('data', function(data) {}); in order to do things like add objects to redis/mongoose (convoluted, yes, but seems more straightforward than setting up a web service for this...) The CasperJS script executes a series of commands and creates, say, 20 screenshots which need to be added to my database.
+
+However, I can't figure out how to break the data variable (a Buffer?) into lines... I've tried converting it to a string and then doing a replace, I've tried doing spawn.stdout.setEncoding('utf8'); but nothing seems to work...
+
+Here is what I have right now
+
+var spawn = require('child_process').spawn;
+
+var bin = "casperjs"
+//googlelinks.js is the example given at http://casperjs.org/#quickstart
+var args = ['scripts/googlelinks.js'];
+var cspr = spawn(bin, args);
+
+//cspr.stdout.setEncoding('utf8');
+cspr.stdout.on('data', function (data) {
+    var buff = new Buffer(data);
+    console.log("foo: " + buff.toString('utf8'));
+});
+
+cspr.stderr.on('data', function (data) {
+    data += '';
+    console.log(data.replace("\n", "\nstderr: "));
+});
+
+cspr.on('exit', function (code) {
+    console.log('child process exited with code ' + code);
+    process.exit(code);
+});
+https://gist.github.com/2131204
+
+node.js phantomjs
+shareimprove this question
+edited Dec 26 '12 at 1:41
+
+hippietrail
+5,76144982
+asked Mar 20 '12 at 4:06
+
+Jesse Fulton
+1,18211321
+1       
+Is this the best approach? It seems like the stdout.on('data') event fires depending upon buffer size, not necessarily new lines. Is this true? – Jesse Fulton Mar 20 '12 at 4:19
+add a comment
+3 Answers
+active oldest votes
+up vote
+10
+down vote
+accepted
+Try this:
+
+cspr.stdout.setEncoding('utf8');
+cspr.stdout.on('data', function(data) {
+  var str = data.toString(), lines = str.split(/(\r?\n)/g);
+  for (var i=0; i<lines.length; i++) {
+    // Process the line, noting it might be incomplete.
+  }
+});
+Note that the "data" event might not necessarily break evenly between lines of output, so a single line might span multiple data events.
+
+shareimprove this answer
+answered Mar 20 '12 at 4:20
+
+maerics
+68.3k17136187
+        
+Weird, I'm on OSX - I thought "\r\n" was Windows. But it seems to work! (after adding a handful of missing parentheses :p) – Jesse Fulton Mar 20 '12 at 4:31
+2       
+@JesseFulton: the \r is optional from the regex special character ? so this code should work on both UNIX and Windows; it's making the regular expression global (.../g) that was probably critical here. The call to "replace" in your sample code used a plain string which gets converted into a non-global regex, so you probably got just two lines instead of all of them. – maerics Mar 20 '12 at 5:06 
+        
+Ah, yea you're right. String.replace(String, String) isn't global - you need to use a regex as the first param and add the 'g' switch. – Jesse Fulton Mar 20 '12 at 5:57
+        
+@mehaase: which comment? – maerics Nov 20 '13 at 16:26
+add a comment
+up vote
+10
+down vote
+I've actually written a Node library for exactly this purpose, it's called stream-splitter and you can find it on Github: samcday/stream-splitter.
+
+The library provides a special Stream you can pipe your casper stdout into, along with a delimiter (in your case, \n), and it will emit neat token events, one for each line it has split out from the input Stream. The internal implementation for this is very simple, and delegates most of the magic to substack/node-buffers which means there's no unnecessary Buffer allocations/copies.
+
+shareimprove this answer
+answered Jul 7 '12 at 7:06
+
+Sam Day
+1,293612
+        
+This library is a great time saver in this particular case. Thanks! – xShirase Oct 18 '13 at 10:07
+        
++1 this just worked for me. hassles all gone. Thanks! – Code Novitiate Jun 1 '14 at 4:14
+add a comment
+up vote
+0
+down vote
+Adding to maerics' answer, which does not deal properly with cases where only part of a line is fed in a data dump (theirs will give you the first part and the second part of the line individually, as two separate lines.)
+
+var _breakOffFirstLine = /\r?\n/
+function filterStdoutDataDumpsToTextLines(callback){ //returns a function that takes chunks of stdin data, aggregates it, and passes lines one by one through to callback, all as soon as it gets them.
+    var acc = ''
+    return function(data){
+        var splitted = data.toString().split(_breakOffFirstLine)
+        var inTactLines = splitted.slice(0, splitted.length-1)
+        var inTactLines[0] = acc+inTactLines[0] //if there was a partial, unended line in the previous dump, it is completed by the first section.
+        acc = splitted[splitted.length-1] //if there is a partial, unended line in this dump, store it to be completed by the next (we assume there will be a terminating newline at some point. This is, generally, a safe assumption.)
+        for(var i=0; i<inTactLines.length; ++i){
+            callback(inTactLines[i])
+        }
+    }
+}
+usage:
+
+process.stdout.on('data', filterStdoutDataDumpsToTextLines(function(line){
+    //each time this inner function is called, you will be getting a single, complete line of the stdout ^^
+}) )
+shareimprove this answer
+edited Jun 30 '15 at 1:49
+answered May 9 '15 at 6:38
+
+mako
+330311
+        
+Not even valid javascript. – Joel Hernandez Jun 29 '15 at 11:27
+add a comment
+Your Answer
+
+
+ 
+Sign up or log in
+
+Sign up using Google
+Sign up using Facebook
+Sign up using Email and Password
+Post as a guest
+
+Name
+
+Email
+
+required, but never shown
+ Post Your Answer
+By posting your answer, you agree to the privacy policy and terms of service.
+
+Not the answer you're looking for?  Browse other questions tagged node.js phantomjs or ask your own question.
+
+asked
+
+4 years ago
+
+viewed
+
+15925 times
+
+active
+
+9 months ago
+
+Linked
+
+11 Is it possible to run PhantomJS from node.js as a command line argument
+1 How can I run CasperJS / PhantomJS tests from a NodeJS / Express web app?
+0 How to get data from python script at Node.js?
+Related
+
+906 How do I pass command line arguments to node.js?
+510 How to parse JSON using Node.js?
+11 Is it possible to run PhantomJS from node.js as a command line argument
+4 Spawned phantomjs process hanging
+18 Node.JS spawn child process and get terminal output instantaneously
+56 node.js child process - difference between spawn & fork
+0 How can I spawn a new process and quit from a node.js script?
+0 phantomjs cannot find module webpage in node's child process
+0 Phantoms error when run as child process
+1 How to see stdout of a phantomjs child process using node.js?
+Hot Network Questions
+
+Have I embarassed my supervisors by solving a problem that a PhD student in my group was working on without success?
+What do the Russian scientists say in this scene of 2001: A Space Odyssey?
+Would a computer use ‘du’ or ‘Sie’ for the user?
+What is a "Magic Packet" for waking a computer?
+Is it possible to restart a computer in response to an email notification?
+What does a triple integral represent?
+As a highly skilled intern with previous work experience, can I tell my boss I want non-trivial work?
+Why is it called the chromatic scale?
+No results on google search in normal mode, but results in incognito?
+Chokes vs. small capacitors on signal cables
+How to warn other programmers of class implementation
+Are 1/1 creatures sent to the graveyard from one damage before Rite of Passage's ability activates?
+Zero knowledge proof of equality
+Interpretation of boundary conditions in time-independent Schrödinger equation
+Confusion with ATmega328P and 3.3V/8MHz
+What are the potential benefits and pitfalls of leaving tenth grade early to pursue an internship at a prominent research lab?
+Can people act like antennas?
+If the polarity of the solvent increases, will the Rf value increase or decrease?
+I regret declining a really good PhD offer. Can I ask if I can accept the offer after all?
+How to buy a plane ticket for someone in France
+How do I save myself from a sinking vehicle?
+Why does The Magicians include so much un-airable dialogue?
+How to ensure integrity and security enforcing signed unmodified RPM package?
+Proof involving Fundamental Theorem of Finitely Generated Abelian Groups
+question feed
+about us tour help blog chat data legal privacy policy work here advertising info mobile contact us feedback
+TECHNOLOGY  LIFE / ARTS CULTURE / RECREATION    SCIENCE OTHER
+Stack Overflow
+Server Fault
+Super User
+Web Applications
+Ask Ubuntu
+Webmasters
+Game Development
+TeX - LaTeX
+Programmers
+Unix & Linux
+Ask Different (Apple)
+WordPress Development
+Geographic Information Systems
+Electrical Engineering
+Android Enthusiasts
+Information Security
+Database Administrators
+Drupal Answers
+SharePoint
+User Experience
+Mathematica
+Salesforce
+ExpressionEngine® Answers
+more (13)
+Photography
+Science Fiction & Fantasy
+Graphic Design
+Movies & TV
+Seasoned Advice (cooking)
+Home Improvement
+Personal Finance & Money
+Academia
+more (9)
+English Language & Usage
+Skeptics
+Mi Yodeya (Judaism)
+Travel
+Christianity
+Arqade (gaming)
+Bicycles
+Role-playing Games
+more (21)
+Mathematics
+Cross Validated (stats)
+Theoretical Computer Science
+Physics
+MathOverflow
+Chemistry
+Biology
+more (5)
+Stack Apps
+Meta Stack Exchange
+Area 51
+Stack Overflow Careers
+site design / logo © 2016 Stack Exchange Inc; user contributions licensed under cc by-sa 3.0 with attribution required
+rev 2016.4.17.3474

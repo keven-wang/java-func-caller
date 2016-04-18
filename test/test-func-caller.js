@@ -1,4 +1,4 @@
-var FuncCaller = require('../func-caller');
+var FuncCaller = require('../src/func-caller');
 var savePath = __dirname + '/my.png';
 var svgCode  = (''
     + "<svg width='64' height='64' " 
