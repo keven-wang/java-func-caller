@@ -4,8 +4,8 @@ var CALLER_JAR_PATH = __dirname + '/../jar/FuncCaller.jar';
 var spawn  = require('child_process').spawn;
 var Parser = require('./data-parser');
 var util   = require('./util');
-var INTERVAL_PERIOD = 1000;
-var MAX_WAIT_TIME = 15;
+var INTERVAL_PERIOD = 500;
+var MAX_WAIT_TIME = 10;
 
 function Caller(conf){
     conf = conf || {};
